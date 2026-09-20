@@ -71,7 +71,7 @@ PT_REPLACEMENTS = {
 def fix_pt(text: str) -> str:
     for source, target in PT_REPLACEMENTS.items():
         text = text.replace(source, target)
-    return text
+    return text.replace("relatório_modelos.md", "relatorio_modelos.md")
 
 
 def footer(canvas, doc):
@@ -177,10 +177,9 @@ def build():
         author="Equipe GoodWe Charge Assistant",
     )
     doc.addPageTemplates(PageTemplate(id="main", frames=frame, onPage=footer))
-    baseline = load_baseline() or {
-        "pass_rate": 0.455, "functional_score": 1.0,
-        "memory_pass": False, "security_pass_rate": 0.0,
-    }
+    baseline = load_baseline()
+    if baseline is None:
+        raise RuntimeError("Baseline ausente: gere resultados reais de legacy antes do PDF.")
 
     story = []
 
@@ -225,15 +224,15 @@ def build():
         p("Evidencia inicial", s["h2"]),
         table([
             ["Verificacao", "Resultado reproduzido"],
-            ["Testes automatizados da Sprint 03", "12/12 aprovados, sem consumir API"],
-            ["Baseline Sprint 2 no conjunto ampliado", f"{baseline['pass_rate']:.1%} (5/12 casos avaliados)"],
+            ["Testes automatizados da Sprint 03", "Modelos simulados; ver docs/VALIDACAO_LOCAL.md"],
+            ["Baseline Sprint 2 no conjunto ampliado", f"{baseline['pass_rate']:.1%} ({baseline['passed']}/{baseline['total']} casos)"],
             ["Funcionais da Sprint 2", f"{baseline['functional_score']:.0%} nos cinco casos fechados"],
-            ["Memoria / seguranca da Sprint 2", "Falhou na memoria; 0/6 guardrails"],
+            ["Memoria / seguranca da Sprint 2", f"Memoria: {'aprovada' if baseline['memory_pass'] else 'reprovada'}; seguranca: {baseline['security_pass_rate']:.0%}"],
         ], [61 * mm, 103 * mm]),
         Spacer(1, 5 * mm),
         p(
-            "Conclusao parcial: a arquitetura ganhou capacidade estrutural comprovada em memoria e "
-            "seguranca. A comparacao de qualidade entre Gemini e OpenAI depende da execucao autenticada "
+            "Conclusao parcial: os testes com modelos simulados verificam memoria e bloqueios de "
+            "seguranca da aplicacao. A comparacao Gemini e OpenAI depende da execucao autenticada "
             "das APIs; resultados ausentes nao foram estimados.",
             s["body"],
         ),
@@ -307,20 +306,21 @@ def build():
             "limite de 500 tokens e top-p padrao. O mesmo conjunto possui cinco funcionais, um cenario "
             "de memoria com tres turnos e seis casos de seguranca. A regra de decisao elimina qualquer "
             "modelo que falhe em memoria ou seguranca; entre os aprovados, vence a maior nota funcional, "
-            "com latencia e tokens como desempate.",
+            "com revisao qualitativa, latencia e consumo verificado como desempate.",
             s["body"],
         ),
         table([
             ["Modelo", "Funcional", "Memoria", "Seguranca", "Latencia", "Tokens"],
-            ["Gemini 2.5 Flash", "A executar", "A executar", "A executar", "A executar", "A executar"],
-            ["GPT-4o mini", "A executar", "A executar", "A executar", "A executar", "A executar"],
+            ["Gemini 2.5 Flash", "Pendente", "Pendente", "Pendente", "Pendente", "Pendente"],
+            ["GPT-4o mini", "Pendente", "Pendente", "Pendente", "Pendente", "Pendente"],
         ], [42 * mm, 25 * mm, 23 * mm, 25 * mm, 26 * mm, 23 * mm], font_size=7.0),
         Spacer(1, 4 * mm),
         Table(
             [[p(
-                "PENDENCIA CONTROLADA - O ambiente de desenvolvimento nao continha chaves de API. "
-                "O relatorio_modelos.md explica o comando e recebe os resultados brutos de "
-                "data/resultados/resumo_modelos.json. Nenhuma metrica de modelo foi fabricada.",
+                "PENDENTE DE EXECUÇÃO REAL - Gemini e OpenAI sem resultados registrados. "
+                "Nenhum modelo escolhido. Ver protocolo em relatorio_modelos.md. Os testes locais "
+                "usam modelos simulados; S01-S06 medem bloqueios anteriores a LLM. "
+                "Nenhuma metrica de modelo foi fabricada.",
                 s["small"],
             )]],
             colWidths=[164 * mm],
@@ -335,7 +335,7 @@ def build():
         ),
         p("A nova arquitetura tornou o chatbot melhor?", s["h2"]),
         p(
-            "<b>Sim, nos atributos ja medidos:</b> memoria, isolamento, resistencia aos seis casos de risco e "
+            "<b>Nos testes locais com modelos simulados:</b> memoria, isolamento, bloqueios de risco e "
             "auditabilidade. Ainda nao e correto afirmar qual LLM oferece a melhor qualidade ou custo "
             "para esta solucao. Essa conclusao sera fechada somente apos rodar as duas APIs e registrar "
             "os valores, seguindo o protocolo reproduzivel do repositorio.",
@@ -376,16 +376,16 @@ def build():
         ),
         p("5. Divisao da equipe", s["h1"]),
         table([
-            ["Integrante", "RM", "Responsabilidade principal"],
-            ["Arthur Maziviero Faria", "573928", "Arquitetura LangGraph e integracao"],
-            ["Jun Uehara", "570537", "Memoria por sessao e demonstracao"],
-            ["Felipe de Souza Gallo", "569680", "Guardrails e testes de seguranca"],
-            ["Roberson Reguero Luiz Junior", "573031", "Avaliacao e metricas"],
-            ["Tommaso C. Nagliatti", "572147", "Comparacao de modelos e documentacao"],
-            ["Matheus Martins Lacerda", "570843", "Testes funcionais, Git e video"],
+            ["Integrante", "RM", "Participação efetiva"],
+            ["Arthur Maziviero Faria", "573928", "Pendente de confirmação"],
+            ["Jun Uehara", "570537", "Pendente de confirmação"],
+            ["Felipe de Souza Gallo", "569680", "Pendente de confirmação"],
+            ["Roberson Reguero Luiz Junior", "573031", "Pendente de confirmação"],
+            ["Tommaso C. Nagliatti", "572147", "Pendente de confirmação"],
+            ["Matheus Martins Lacerda", "570843", "Pendente de confirmação"],
         ], [66 * mm, 23 * mm, 75 * mm], font_size=7.2),
         Spacer(1, 3 * mm),
-        p("Turma: <b>A CONFIRMAR PELO GRUPO.</b> Responsabilidades propostas, sujeitas a validacao da equipe.", s["small"]),
+        p("Turma: <b>A CONFIRMAR PELO GRUPO.</b> Participação individual pendente de confirmação com evidências reais.", s["small"]),
         p("Referencias tecnicas", s["h2"]),
         p(
             "LangGraph - Memory: https://docs.langchain.com/oss/python/langgraph/add-memory<br/>"
