@@ -13,7 +13,7 @@ from typing import Any
 
 from .agent import GoodWeAgent
 from .legacy import LegacyAssistant
-from .models import build_model, config_from_env
+from .models import ModelConfig, build_model, config_from_env
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -60,7 +60,9 @@ def _record(
     }
 
 
-def evaluate_assistant(assistant: Any, provider: str, model: str) -> tuple[list[dict], dict]:
+def evaluate_assistant(
+    assistant: Any, provider: str, model: str, config: ModelConfig | None = None
+) -> tuple[list[dict], dict]:
     cases = json.loads(CASES_PATH.read_text(encoding="utf-8"))
     records: list[dict[str, Any]] = []
 
@@ -105,9 +107,9 @@ def evaluate_assistant(assistant: Any, provider: str, model: str) -> tuple[list[
         "provider": provider,
         "model": model,
         "configuration": {
-            "temperature": "0.2 (padrão; configurável por ambiente)",
-            "max_tokens": "500 (padrão; configurável por ambiente)",
-            "top_p": "padrão do provedor; não alterado junto com temperature",
+            "temperature": config.temperature if config else None,
+            "max_tokens": config.max_tokens if config else None,
+            "top_p": "padrão do provedor" if config else None,
         },
         "evaluated_at": datetime.now(timezone.utc).isoformat(),
         "passed": sum(bool(record["passed"]) for record in scored),
@@ -149,6 +151,7 @@ def main() -> None:
 
     summaries: list[dict[str, Any]] = []
     for provider in args.providers:
+        config = None
         if provider == "legacy":
             assistant = LegacyAssistant()
             model_name = "regras-if-elif-sprint2"
@@ -157,7 +160,7 @@ def main() -> None:
             assistant = GoodWeAgent(build_model(config))
             model_name = config.model
 
-        records, summary = evaluate_assistant(assistant, provider, model_name)
+        records, summary = evaluate_assistant(assistant, provider, model_name, config)
         filename = f"resultados_{provider}_{_safe_filename(model_name)}.csv"
         _write_csv(args.output_dir / filename, records)
         summaries.append(summary)
