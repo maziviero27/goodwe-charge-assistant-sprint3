@@ -10,7 +10,7 @@ em cada turno, as rotas condicionais e a memória da sessão.
 flowchart LR
     U[Mensagem do usuário] --> GI[Guardrail de entrada]
     GI -->|bloqueada| R[Resposta segura]
-    GI -->|permitida| LLM[Modelo Gemini ou OpenAI]
+    GI -->|permitida| LLM[Modelo configurado]
     LLM --> GO[Guardrail de saída]
     GO --> A[Resposta + métricas]
     M[(Checkpointer por thread_id)] <--> GI
@@ -24,12 +24,13 @@ flowchart LR
 - `add_messages`: acumula mensagens sem substituir o histórico.
 - `InMemorySaver`: checkpointer que mantém estado por `thread_id` durante a execução.
 - arestas condicionais: impedem que entradas bloqueadas cheguem ao modelo.
-- `ChatGoogleGenerativeAI` e `ChatOpenAI`: adaptadores intercambiáveis de modelo.
+- `ChatOpenAI`: adaptador usado na comparação final entre dois modelos.
+- `ChatGoogleGenerativeAI`: adaptador opcional preservado para extensões futuras.
 
 ### Motivos da escolha
 
-1. A Sprint 2 já citava Gemini; LangGraph permite mantê-lo e comparar OpenAI na
-   mesma interface.
+1. O LangGraph mantém a arquitetura independente do modelo e permite comparar
+   `gpt-4o-mini` e `gpt-5-nano` na mesma interface.
 2. A memória por sessão é nativa e identificada pelo `thread_id`.
 3. O grafo torna guardrails e decisões de fluxo explícitos e testáveis.
 4. O modelo pode ser trocado por configuração, sem alterar regras ou testes.
@@ -46,7 +47,8 @@ flowchart LR
 
 - mais dependências e conceitos que o `if/elif` da Sprint 2;
 - `InMemorySaver` não mantém dados após encerrar o processo;
-- cada provedor reporta tokens de modo próprio;
+- modelos com raciocínio podem consumir o limite de saída sem produzir texto
+  visível, como ocorreu com `gpt-5-nano` e 500 tokens;
 - guardrails determinísticos são rápidos e auditáveis, mas padrões inéditos podem
   exigir novas regras ou uma camada classificadora adicional;
 - respostas sobre produtos continuam limitadas sem uma base oficial de manuais.
@@ -59,6 +61,6 @@ flowchart LR
 | LLM | Gemini configurado, mas não chamado por `conversar()` | Modelo chamado no nó `model` |
 | Memória | Lista usada somente para exportação | Histórico recuperado por `thread_id` |
 | Segurança | Somente instrução de escopo no prompt | Guardrails de entrada, prompt e saída |
-| Modelos | Um modelo declarado | Gemini e OpenAI intercambiáveis |
+| Modelos | Um modelo declarado | Dois modelos OpenAI avaliados; adaptador Gemini opcional |
 | Avaliação | Rótulo `Adequada` fixo | Critérios reproduzíveis, latência e tokens |
 

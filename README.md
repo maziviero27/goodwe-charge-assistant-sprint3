@@ -8,13 +8,13 @@ LangGraph, memória por sessão, guardrails e comparação reproduzível de mode
 
 ## Estado da entrega
 
-**Comparação Gemini × OpenAI pendente de execução real; modelo final não escolhido.**
-O código e os testes locais estão disponíveis. Resultados da baseline e de modelos
-simulados não são resultados de LLMs externas. Ver [validação local](docs/VALIDACAO_LOCAL.md).
+**Comparação real concluída entre `gpt-4o-mini` e `gpt-5-nano`.**
+`gpt-4o-mini` foi escolhido com 11/12 casos aprovados (91,7%), memória completa,
+latência média de 1.746,58 ms e 6.638 tokens. O relatório, os CSVs e o resumo JSON
+registram as evidências sem publicar a chave.
 
-Pendências para fechamento: executar ambas as APIs, analisar CSVs e preencher o
-relatório de modelos; atualizar o PDF com evidências reais; confirmar turma e
-participação de cada integrante; informar o link do vídeo de demonstração.
+Pendências administrativas: confirmar turma e participação de cada integrante e
+informar o link do vídeo de demonstração.
 
 ## Integrantes
 
@@ -51,7 +51,7 @@ O GoodWe Charge Assistant apoia operadores, síndicos, moradores e técnicos em:
 |---|---|
 | Respostas locais com `if/elif` | Pipeline executável em `StateGraph` |
 | Histórico apenas registrado | Memória recuperada por sessão (`thread_id`) |
-| Gemini configurado, mas fora da função de conversa | Gemini/OpenAI chamados pelo nó do modelo |
+| Gemini configurado, mas fora da função de conversa | Modelos OpenAI chamados pelo nó do modelo |
 | Sem testes adversariais | Prompt injection, escopo, segurança e não alucinação |
 | Avaliação `Adequada` fixa | Nota por critérios, latência, tokens e CSV |
 
@@ -63,7 +63,7 @@ O ganho arquitetural e os trade-offs estão explicados em
 O LangGraph controla três etapas. Entradas bloqueadas encerram o fluxo na primeira:
 
 1. `input_guardrail`: classifica e bloqueia riscos determinísticos;
-2. `model`: chama o Gemini ou OpenAI com todo o histórico da sessão;
+2. `model`: chama o modelo configurado com todo o histórico da sessão;
 3. `output_guardrail`: evita vazamento aparente de instruções internas.
 
 O `InMemorySaver` do framework mantém as mensagens separadas por `thread_id`. Assim,
@@ -94,21 +94,15 @@ python -m pip install -e ".[dev]"
 cp .env.example .env
 ```
 
-No `.env`, preencha `GEMINI_API_KEY` e/ou `OPENAI_API_KEY`. Esse arquivo já está no
+No `.env`, preencha `OPENAI_API_KEY`. Esse arquivo já está no
 `.gitignore`; nunca registre credenciais no código ou no histórico Git.
 
 ## Executar o chatbot
 
-Gemini (padrão):
+Modelo escolhido:
 
 ```bash
-goodwe-chat --provider gemini --session demonstracao
-```
-
-OpenAI:
-
-```bash
-goodwe-chat --provider openai --session demonstracao
+goodwe-chat --provider openai --model gpt-4o-mini --session demonstracao
 ```
 
 Para demonstrar a memória, envie na mesma execução:
@@ -141,25 +135,26 @@ somente permissão de leitura e não referencia secrets nem chama Gemini/OpenAI.
 A instalação das dependências exige acesso à internet; os testes usam modelos
 simulados. A execução remota do workflow precisa ser confirmada após publicação.
 
-O comparativo real exige as duas chaves e executa os mesmos casos por provedor.
+O comparativo real usa uma chave OpenAI e executa os mesmos casos nos dois modelos.
 Use um diretório novo a cada rodada para preservar as evidências:
 
 
 ```bash
-goodwe-eval --providers gemini openai --output-dir data/resultados/rodada-01
+goodwe-eval --providers openai --openai-models gpt-4o-mini gpt-5-nano \
+  --output-dir data/resultados/nova-rodada
 ```
 
 Para incluir a Sprint 2 como baseline:
 
 ```bash
-goodwe-eval --providers legacy gemini openai --output-dir data/resultados/rodada-completa-01
+goodwe-eval --providers legacy openai --openai-models gpt-4o-mini gpt-5-nano \
+  --output-dir data/resultados/nova-rodada-completa
 ```
 
-Os CSVs e o resumo JSON são gravados no diretório indicado. Reutilizar o mesmo
-diretório sobrescreve arquivos; o resumo contém só a última invocação. Transfira os números e
-a análise qualitativa para `relatorio_modelos.md` antes da entrega. Sem chaves, é
-possível executar apenas `goodwe-eval --providers legacy --output-dir tmp/legacy`.
-O protocolo, os limites das métricas e os campos de análise estão em
+Os CSVs e o resumo JSON são gravados no diretório indicado. A rodada final auditada
+está em `data/resultados/rodada-final-openai-02/`. Sem chave, é possível executar
+apenas `goodwe-eval --providers legacy --output-dir tmp/legacy`. O protocolo, os
+resultados, os limites das métricas e a decisão estão em
 [`relatorio_modelos.md`](relatorio_modelos.md).
 
 ## Casos de teste
@@ -193,7 +188,7 @@ goodwe-charge-assistant-sprint3/
 - `relatorio_modelos.md`: protocolo, configurações, resultados e decisão do modelo;
 - `docs/ARQUITETURA.md`: escolha do framework, componentes e trade-offs;
 - `docs/CASOS_DE_TESTE.md`: testes funcionais, memória e segurança;
-- `relatorio_evolucao.pdf`: relatório de evolução com comparação real explicitamente pendente;
+- `relatorio_evolucao.pdf`: relatório de evolução com a comparação real;
 - `integrantes.txt`: nomes, RMs e turma;
 - `legacy/`: notebook original da Sprint 2 para rastreabilidade.
 
@@ -215,8 +210,6 @@ guardrails e os critérios de avaliação.
 python tools/build_report.py
 ```
 
-O gerador usa a baseline existente em `data/resultados/resumo_modelos.json` e
-interrompe se ela estiver ausente, evitando valores inventados. O comparativo de
-LLMs permanece explicitamente pendente: após obter e revisar resultados reais,
-atualizar a seção correspondente do gerador e `relatorio_modelos.md`. Conferir
-visualmente o PDF regenerado antes da entrega.
+O gerador lê `data/resultados/rodada-final-openai-02/resumo_modelos.json` e
+interrompe se a rodada completa estiver ausente, evitando valores inventados.
+Conferir visualmente o PDF regenerado antes da entrega.

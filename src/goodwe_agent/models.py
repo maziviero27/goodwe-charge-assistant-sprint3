@@ -16,7 +16,7 @@ class ModelConfig:
 
 def config_from_env(provider: str | None = None, model: str | None = None) -> ModelConfig:
     load_dotenv()
-    selected = (provider or os.getenv("GOODWE_PROVIDER", "gemini")).lower()
+    selected = (provider or os.getenv("GOODWE_PROVIDER", "openai")).lower()
     defaults = {
         "gemini": os.getenv("GOODWE_GEMINI_MODEL", "gemini-2.5-flash"),
         "openai": os.getenv("GOODWE_OPENAI_MODEL", "gpt-4o-mini"),
