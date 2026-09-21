@@ -23,7 +23,7 @@ from reportlab.platypus import (
 
 ROOT = Path(__file__).resolve().parents[1]
 OUTPUT = ROOT / "relatorio_evolucao.pdf"
-SUMMARY_PATH = ROOT / "data" / "resultados" / "resumo_modelos.json"
+SUMMARY_PATH = ROOT / "data" / "resultados" / "rodada-final-openai-02" / "resumo_modelos.json"
 
 NAVY = colors.HexColor("#12324A")
 GREEN = colors.HexColor("#29A36A")
@@ -160,11 +160,15 @@ def table(data, widths, header=True, font_size=7.6):
     return result
 
 
-def load_baseline():
+def load_results():
     if not SUMMARY_PATH.exists():
         return None
     entries = json.loads(SUMMARY_PATH.read_text(encoding="utf-8"))
-    return next((entry for entry in entries if entry["provider"] == "legacy"), None)
+    by_model = {entry["model"]: entry for entry in entries}
+    required = {"regras-if-elif-sprint2", "gpt-4o-mini", "gpt-5-nano"}
+    if not required.issubset(by_model):
+        return None
+    return by_model
 
 
 def build():
@@ -177,9 +181,12 @@ def build():
         author="Equipe GoodWe Charge Assistant",
     )
     doc.addPageTemplates(PageTemplate(id="main", frames=frame, onPage=footer))
-    baseline = load_baseline()
-    if baseline is None:
-        raise RuntimeError("Baseline ausente: gere resultados reais de legacy antes do PDF.")
+    results = load_results()
+    if results is None:
+        raise RuntimeError("Resultados finais ausentes: execute a rodada comparativa antes do PDF.")
+    baseline = results["regras-if-elif-sprint2"]
+    gpt4o = results["gpt-4o-mini"]
+    gpt5 = results["gpt-5-nano"]
 
     story = []
 
@@ -231,9 +238,11 @@ def build():
         ], [61 * mm, 103 * mm]),
         Spacer(1, 5 * mm),
         p(
-            "Conclusao parcial: os testes com modelos simulados verificam memoria e bloqueios de "
-            "seguranca da aplicacao. A comparacao Gemini e OpenAI depende da execucao autenticada "
-            "das APIs; resultados ausentes nao foram estimados.",
+            f"Conclusao: a comparacao autenticada foi concluida. O <b>gpt-4o-mini</b> aprovou "
+            f"{gpt4o['passed']}/{gpt4o['total']} casos ({gpt4o['pass_rate']:.1%}), enquanto o "
+            f"<b>gpt-5-nano</b> aprovou {gpt5['passed']}/{gpt5['total']} ({gpt5['pass_rate']:.1%}). "
+            "O gpt-4o-mini foi selecionado pela maior cobertura funcional, memoria completa, menor "
+            "latencia media e menor consumo total de tokens nesta rodada.",
             s["body"],
         ),
         PageBreak(),
@@ -244,7 +253,7 @@ def build():
         p("2. Refatoracao e decisoes tecnicas", s["h1"]),
         p(
             "O framework escolhido foi o <b>LangGraph</b>, com mensagens do LangChain. A escolha permite "
-            "manter Gemini e comparar OpenAI sob a mesma interface. O framework participa diretamente "
+            "comparar modelos OpenAI sob a mesma interface. O framework participa diretamente "
             "do fluxo: o <b>StateGraph</b> executa os nos, decide rotas e persiste mensagens por "
             "<b>thread_id</b> atraves do <b>InMemorySaver</b>.",
             s["body"],
@@ -252,7 +261,7 @@ def build():
         table([
             ["Etapa", "Responsabilidade", "Ganho"],
             ["1. input_guardrail", "Detecta injecao, risco eletrico, aconselhamento e escopo", "Bloqueia antes da chamada paga"],
-            ["2. model", "Envia system prompt e historico ao Gemini ou OpenAI", "LLM participa efetivamente"],
+            ["2. model", "Envia system prompt e historico ao modelo configurado", "LLM participa efetivamente"],
             ["3. output_guardrail", "Inspeciona vazamento aparente de instrucoes", "Camada defensiva adicional"],
             ["4. checkpointer", "Acumula mensagens por thread_id", "Memoria e isolamento de sessoes"],
             ["5. evaluator", "Repete casos e coleta nota, tempo e tokens", "Decisao baseada em evidencia"],
@@ -261,8 +270,8 @@ def build():
         p(
             "O estado usa <b>add_messages</b>, que acrescenta cada turno ao historico. Uma aresta "
             "condicional envia entradas permitidas ao modelo e encerra entradas bloqueadas com resposta "
-            "segura. Os adaptadores <b>ChatGoogleGenerativeAI</b> e <b>ChatOpenAI</b> sao escolhidos pelo "
-            "arquivo .env, sem alterar o grafo. O prompt reforca escopo, hierarquia de instrucoes, nao "
+            "segura. O adaptador <b>ChatOpenAI</b> executou os dois modelos finais; o adaptador Gemini "
+            "permanece opcional. O prompt reforca escopo, hierarquia de instrucoes, nao "
             "divulgacao de segredos, limites profissionais e seguranca eletrica.",
             s["body"],
         ),
@@ -271,9 +280,9 @@ def build():
             ["Vantagens", "Limitacoes / trade-offs"],
             ["Fluxo explicito, modular e testavel", "Mais dependencias e conceitos que o notebook"],
             ["Memoria nativa por sessao", "Memoria atual nao sobrevive ao fim do processo"],
-            ["Mesmo teste para provedores distintos", "Metadados de tokens variam por provedor"],
+            ["Mesmo teste para modelos distintos", "Metadados podem variar entre modelos"],
             ["Guardrails deterministas, rapidos e auditaveis", "Padroes ineditos podem exigir novas regras"],
-            ["Chaves somente em variaveis de ambiente", "Execucao comparativa requer duas credenciais"],
+            ["Chaves somente em variaveis de ambiente", "Uma credencial ainda depende de cota e acesso aos modelos"],
         ], [82 * mm, 82 * mm]),
         p("Criterio de projeto", s["h2"]),
         p(
@@ -291,7 +300,7 @@ def build():
         table([
             ["Aspecto", "Sprints 1 e 2", "Sprint 03"],
             ["Arquitetura", "Notebook monolitico e if/elif", "Pacote Python e grafo LangGraph"],
-            ["Modelo", "Gemini declarado, nao usado em conversar()", "Gemini ou OpenAI no no model"],
+            ["Modelo", "Gemini declarado, nao usado em conversar()", "Dois modelos OpenAI executados no no model"],
             ["Memoria", "Lista para CSV, sem recuperacao", "Mensagens por thread_id"],
             ["Seguranca", "Regra textual de escopo", "Entrada + prompt + saida"],
             ["Avaliacao", "Adequada fixo", "Criterios, CSV, latencia e tokens"],
@@ -302,25 +311,25 @@ def build():
         ], [35 * mm, 62 * mm, 67 * mm], font_size=7.3),
         p("Experimento entre modelos", s["h2"]),
         p(
-            "Foram preparados <b>Gemini 2.5 Flash</b> e <b>GPT-4o mini</b>, ambos com temperature 0,2, "
+            "Foram executados <b>gpt-4o-mini</b> e <b>gpt-5-nano</b>, ambos com temperature 0,2, "
             "limite de 500 tokens e top-p padrao. O mesmo conjunto possui cinco funcionais, um cenario "
             "de memoria com tres turnos e seis casos de seguranca. A regra de decisao elimina qualquer "
             "modelo que falhe em memoria ou seguranca; entre os aprovados, vence a maior nota funcional, "
-            "com revisao qualitativa, latencia e consumo verificado como desempate.",
+            "com revisao qualitativa, latencia e consumo verificado como desempate. A rodada ocorreu "
+            "em 21/09/2026 com Python 3.12.14 e o mesmo prompt para os dois modelos.",
             s["body"],
         ),
         table([
             ["Modelo", "Funcional", "Memoria", "Seguranca", "Latencia", "Tokens"],
-            ["Gemini 2.5 Flash", "Pendente", "Pendente", "Pendente", "Pendente", "Pendente"],
-            ["GPT-4o mini", "Pendente", "Pendente", "Pendente", "Pendente", "Pendente"],
+            ["gpt-4o-mini", f"{gpt4o['functional_score']:.3f}", "Aprovada", f"{gpt4o['security_pass_rate']:.0%}", f"{gpt4o['average_latency_ms']:.0f} ms", str(gpt4o['total_tokens'])],
+            ["gpt-5-nano", f"{gpt5['functional_score']:.3f}", "Reprovada", f"{gpt5['security_pass_rate']:.0%}", f"{gpt5['average_latency_ms']:.0f} ms", str(gpt5['total_tokens'])],
         ], [42 * mm, 25 * mm, 23 * mm, 25 * mm, 26 * mm, 23 * mm], font_size=7.0),
         Spacer(1, 4 * mm),
         Table(
             [[p(
-                "PENDENTE DE EXECUÇÃO REAL - Gemini e OpenAI sem resultados registrados. "
-                "Nenhum modelo escolhido. Ver protocolo em relatorio_modelos.md. Os testes locais "
-                "usam modelos simulados; S01-S06 medem bloqueios anteriores a LLM. "
-                "Nenhuma metrica de modelo foi fabricada.",
+                "RESULTADO REAL - gpt-4o-mini selecionado: 11/12 casos (91,7%), contra 6/12 "
+                "do gpt-5-nano (50,0%). O gpt-4o-mini recuperou Solar Park e 12 vagas no terceiro "
+                "turno. Os seis casos de seguranca foram bloqueados localmente para ambos os modelos.",
                 s["small"],
             )]],
             colWidths=[164 * mm],
@@ -335,10 +344,11 @@ def build():
         ),
         p("A nova arquitetura tornou o chatbot melhor?", s["h2"]),
         p(
-            "<b>Nos testes locais com modelos simulados:</b> memoria, isolamento, bloqueios de risco e "
-            "auditabilidade. Ainda nao e correto afirmar qual LLM oferece a melhor qualidade ou custo "
-            "para esta solucao. Essa conclusao sera fechada somente apos rodar as duas APIs e registrar "
-            "os valores, seguindo o protocolo reproduzivel do repositorio.",
+            "<b>Sim, dentro do conjunto avaliado.</b> O gpt-4o-mini respondeu aos cinco pedidos "
+            "funcionais, manteve o contexto completo em tres turnos e passou pelos seis bloqueios. "
+            "O gpt-5-nano manteve a seguranca, mas produziu respostas vazias nos funcionais com o "
+            "limite comum de 500 tokens e recuperou apenas parte da memoria. A escolha vale para esta "
+            "configuracao e permanece auditavel pelos CSVs e pelo resumo JSON do repositorio.",
             s["body"],
         ),
         PageBreak(),
@@ -390,7 +400,8 @@ def build():
         p(
             "LangGraph - Memory: https://docs.langchain.com/oss/python/langgraph/add-memory<br/>"
             "LangChain - Guardrails: https://docs.langchain.com/oss/python/langchain/guardrails<br/>"
-            "OpenAI - Models: https://developers.openai.com/api/docs/models",
+            "OpenAI - GPT-4o mini: https://developers.openai.com/api/docs/models/gpt-4o-mini<br/>"
+            "OpenAI - GPT-5 nano: https://developers.openai.com/api/docs/models/gpt-5-nano",
             s["small"],
         ),
     ]
