@@ -6,6 +6,16 @@ GoodWe e na gestão inteligente de carregadores para veículos elétricos. Esta 
 cinco temas de teste, mas substitui o fluxo manual por um agente orquestrado com
 LangGraph, memória por sessão, guardrails e comparação reproduzível de modelos.
 
+## Estado da entrega
+
+**Comparação Gemini × OpenAI pendente de execução real; modelo final não escolhido.**
+O código e os testes locais estão disponíveis. Resultados da baseline e de modelos
+simulados não são resultados de LLMs externas. Ver [validação local](docs/VALIDACAO_LOCAL.md).
+
+Pendências para fechamento: executar ambas as APIs, analisar CSVs e preencher o
+relatório de modelos; atualizar o PDF com evidências reais; confirmar turma e
+participação de cada integrante; informar o link do vídeo de demonstração.
+
 ## Integrantes
 
 - Arthur Maziviero Faria — RM 573928
@@ -15,6 +25,8 @@ LangGraph, memória por sessão, guardrails e comparação reproduzível de mode
 - Tommaso C. Nagliatti — RM 572147
 - Matheus Martins Lacerda — RM 570843
 
+Turma pendente de confirmação em `integrantes.txt`. A divisão efetiva de tarefas
+também depende da confirmação dos integrantes; não foi inferida do cadastro.
 
 ## Problema abordado
 
@@ -48,7 +60,7 @@ O ganho arquitetural e os trade-offs estão explicados em
 
 ## Arquitetura
 
-Cada mensagem atravessa três etapas controladas pelo LangGraph:
+O LangGraph controla três etapas. Entradas bloqueadas encerram o fluxo na primeira:
 
 1. `input_guardrail`: classifica e bloqueia riscos determinísticos;
 2. `model`: chama o Gemini ou OpenAI com todo o histórico da sessão;
@@ -107,35 +119,48 @@ Existem 12 vagas de carregamento.
 Considerando o condomínio que mencionei, quantas vagas eu disse que existem?
 ```
 
-Use outro valor em `--session` para comprovar que as conversas são isoladas.
+O teste de isolamento usa duas sessões no mesmo agente; consulte
+`tests/test_memory.py`. Abrir processos separados com `--session` diferente
+não comprova esse isolamento, pois cada processo cria seu próprio agente.
 
 ## Testes automatizados
 
 Os testes unitários não consomem API:
 
 ```bash
-pytest
+python -m pytest
 ```
 
 Eles verificam memória em três turnos, isolamento de sessões, prompt injection,
 segurança elétrica, aconselhamento profissional, especificações inventadas, escopo,
 guardrail de saída e preservação do comportamento legado.
 
-O comparativo real executa exatamente os mesmos casos em ambos os modelos:
+O workflow `.github/workflows/tests.yml` está preparado para executar os testes,
+a baseline e a geração do PDF em pushes, pull requests e execução manual. Usa
+somente permissão de leitura e não referencia secrets nem chama Gemini/OpenAI.
+A instalação das dependências exige acesso à internet; os testes usam modelos
+simulados. A execução remota do workflow precisa ser confirmada após publicação.
+
+O comparativo real exige as duas chaves e executa os mesmos casos por provedor.
+Use um diretório novo a cada rodada para preservar as evidências:
+
 
 ```bash
-goodwe-eval --providers gemini openai
+goodwe-eval --providers gemini openai --output-dir data/resultados/rodada-01
 ```
 
 Para incluir a Sprint 2 como baseline:
 
 ```bash
-goodwe-eval --providers legacy gemini openai
+goodwe-eval --providers legacy gemini openai --output-dir data/resultados/rodada-completa-01
 ```
 
-Os CSVs e o resumo JSON são gravados em `data/resultados/`. Transfira os números e
+Os CSVs e o resumo JSON são gravados no diretório indicado. Reutilizar o mesmo
+diretório sobrescreve arquivos; o resumo contém só a última invocação. Transfira os números e
 a análise qualitativa para `relatorio_modelos.md` antes da entrega. Sem chaves, é
-possível executar apenas `goodwe-eval --providers legacy`.
+possível executar apenas `goodwe-eval --providers legacy --output-dir tmp/legacy`.
+O protocolo, os limites das métricas e os campos de análise estão em
+[`relatorio_modelos.md`](relatorio_modelos.md).
 
 ## Casos de teste
 
@@ -168,13 +193,14 @@ goodwe-charge-assistant-sprint3/
 - `relatorio_modelos.md`: protocolo, configurações, resultados e decisão do modelo;
 - `docs/ARQUITETURA.md`: escolha do framework, componentes e trade-offs;
 - `docs/CASOS_DE_TESTE.md`: testes funcionais, memória e segurança;
-- `relatorio_evolucao.pdf`: relatório final de até cinco páginas;
+- `relatorio_evolucao.pdf`: relatório de evolução com comparação real explicitamente pendente;
 - `integrantes.txt`: nomes, RMs e turma;
 - `legacy/`: notebook original da Sprint 2 para rastreabilidade.
 
 ## Vídeo de demonstração
 
-Link do vídeo: inserir aqui o link do YouTube não listado.
+Pendente: o link do vídeo não consta no repositório. O grupo deve gravar/conferir
+a demonstração e informar o link do YouTube não listado antes da entrega.
 
 ## Segurança e integridade
 
@@ -182,3 +208,15 @@ Nenhuma chave de API é incluída no repositório. As métricas de modelos só d
 registradas após execução real; resultados ausentes não devem ser preenchidos por
 estimativa. O grupo deve conseguir explicar o grafo, o prompt, a memória, os
 guardrails e os critérios de avaliação.
+
+## Regenerar o PDF
+
+```bash
+python tools/build_report.py
+```
+
+O gerador usa a baseline existente em `data/resultados/resumo_modelos.json` e
+interrompe se ela estiver ausente, evitando valores inventados. O comparativo de
+LLMs permanece explicitamente pendente: após obter e revisar resultados reais,
+atualizar a seção correspondente do gerador e `relatorio_modelos.md`. Conferir
+visualmente o PDF regenerado antes da entrega.
