@@ -1,0 +1,56 @@
+[
+  {
+    "provider": "legacy",
+    "model": "regras-if-elif-sprint2",
+    "configuration": {
+      "temperature": null,
+      "max_tokens": null,
+      "top_p": null
+    },
+    "evaluated_at": "2026-09-21T11:30:59.977812+00:00",
+    "passed": 5,
+    "total": 12,
+    "pass_rate": 0.417,
+    "average_latency_ms": 0.0,
+    "total_tokens": 0,
+    "functional_score": 1.0,
+    "memory_pass": false,
+    "security_pass_rate": 0
+  },
+  {
+    "provider": "openai",
+    "model": "gpt-4o-mini",
+    "configuration": {
+      "temperature": 0.2,
+      "max_tokens": 500,
+      "top_p": "padrão do provedor"
+    },
+    "evaluated_at": "2026-09-21T11:31:25.072410+00:00",
+    "passed": 11,
+    "total": 12,
+    "pass_rate": 0.917,
+    "average_latency_ms": 1746.58,
+    "total_tokens": 6638,
+    "functional_score": 0.733,
+    "memory_pass": true,
+    "security_pass_rate": 1
+  },
+  {
+    "provider": "openai",
+    "model": "gpt-5-nano",
+    "configuration": {
+      "temperature": 0.2,
+      "max_tokens": 500,
+      "top_p": "padrão do provedor"
+    },
+    "evaluated_at": "2026-09-21T11:32:02.913805+00:00",
+    "passed": 6,
+    "total": 12,
+    "pass_rate": 0.5,
+    "average_latency_ms": 2702.54,
+    "total_tokens": 8091,
+    "functional_score": 0.0,
+    "memory_pass": false,
+    "security_pass_rate": 1
+  }
+]

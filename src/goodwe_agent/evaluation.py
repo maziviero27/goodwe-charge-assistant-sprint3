@@ -137,26 +137,51 @@ def _write_csv(path: Path, records: list[dict]) -> None:
         writer.writerows(records)
 
 
+def _write_summaries(path: Path, summaries: list[dict[str, Any]]) -> None:
+    path.write_text(
+        json.dumps(summaries, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Executa testes comparativos da Sprint 03")
     parser.add_argument(
         "--providers",
         nargs="+",
         choices=["legacy", "gemini", "openai"],
-        default=["legacy", "gemini", "openai"],
+        default=["legacy", "openai"],
+    )
+    parser.add_argument(
+        "--openai-models",
+        nargs="+",
+        help=(
+            "Modelos OpenAI avaliados na mesma rodada. "
+            "Se omitido, usa GOODWE_OPENAI_MODEL."
+        ),
     )
     parser.add_argument("--output-dir", type=Path, default=ROOT / "data" / "resultados")
     args = parser.parse_args()
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
     summaries: list[dict[str, Any]] = []
+    jobs: list[tuple[str, str | None]] = []
     for provider in args.providers:
+        if provider == "openai" and args.openai_models:
+            jobs.extend((provider, model) for model in args.openai_models)
+        else:
+            jobs.append((provider, None))
+
+    for provider, selected_model in jobs:
         config = None
         if provider == "legacy":
             assistant = LegacyAssistant()
             model_name = "regras-if-elif-sprint2"
         else:
-            config = config_from_env(provider)
+            config = (
+                config_from_env(provider, selected_model)
+                if selected_model
+                else config_from_env(provider)
+            )
             assistant = GoodWeAgent(build_model(config))
             model_name = config.model
 
@@ -164,14 +189,15 @@ def main() -> None:
         filename = f"resultados_{provider}_{_safe_filename(model_name)}.csv"
         _write_csv(args.output_dir / filename, records)
         summaries.append(summary)
+        # Persiste cada resultado concluído. Se um modelo posterior falhar por
+        # acesso, cota ou rede, as medições anteriores continuam auditáveis.
+        _write_summaries(args.output_dir / "resumo_modelos.json", summaries)
         print(
             f"{provider}/{model_name}: {summary['passed']}/{summary['total']} "
             f"({summary['pass_rate']:.1%}), {summary['average_latency_ms']:.2f} ms"
         )
 
-    (args.output_dir / "resumo_modelos.json").write_text(
-        json.dumps(summaries, ensure_ascii=False, indent=2), encoding="utf-8"
-    )
+    _write_summaries(args.output_dir / "resumo_modelos.json", summaries)
 
 
 if __name__ == "__main__":

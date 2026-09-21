@@ -35,3 +35,23 @@ def test_cli_records_actual_configuration_without_api(monkeypatch, tmp_path):
     assert summary["configuration"]["temperature"] == 0.7
     assert summary["configuration"]["max_tokens"] == 123
     assert (tmp_path / "resultados_gemini_simulated-for-test.csv").exists()
+
+
+def test_cli_runs_two_openai_models_in_the_same_round(monkeypatch, tmp_path):
+    def fake_config(provider, model=None):
+        return ModelConfig(provider, model or "default-test", 0.2, 500)
+
+    monkeypatch.setattr(evaluation, "config_from_env", fake_config)
+    monkeypatch.setattr(evaluation, "build_model", lambda config: MemoryAwareFakeModel())
+    monkeypatch.setattr(sys, "argv", [
+        "goodwe-eval", "--providers", "openai", "--openai-models",
+        "model-a", "model-b", "--output-dir", str(tmp_path),
+    ])
+    evaluation.main()
+
+    summaries = json.loads(
+        (tmp_path / "resumo_modelos.json").read_text(encoding="utf-8")
+    )
+    assert [item["model"] for item in summaries] == ["model-a", "model-b"]
+    assert (tmp_path / "resultados_openai_model-a.csv").exists()
+    assert (tmp_path / "resultados_openai_model-b.csv").exists()
